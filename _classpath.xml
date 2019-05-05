@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="tools/java-cup-11b-runtime.jar"/>
+	<classpathentry kind="lib" path="E:/ANFEL/lib/gs-algo-1.3.jar"/>
+	<classpathentry kind="lib" path="E:/ANFEL/lib/gs-core-1.3.jar" sourcepath="C:/Users/Etudiant/.m2/repository/org/graphstream/gs-core/1.3/gs-core-1.3-sources.jar"/>
+	<classpathentry kind="lib" path="E:/ANFEL/lib/gs-ui-1.3.jar"/>
+	<classpathentry kind="lib" path="E:/ANFEL/gs-ui-javafx-master/target/gs-ui-javafx-0.0.1-SNAPSHOT.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

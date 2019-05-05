@@ -1,0 +1,94 @@
+/*
+   Simple +/-/* expression language; 
+   parser evaluates constant expressions on the fly
+*/
+
+package cup.example;
+
+import java_cup.runtime.*;
+import cup.example.Lexer;
+import java.io.IOException;
+import java.io.File;
+import java.io.FileInputStream;
+import cup.example.expression.*;
+parser code {:
+  protected Lexer lexer;
+:}
+
+/* define how to connect to the scanner! */
+init with {:
+  ComplexSymbolFactory f = new ComplexSymbolFactory();
+  symbolFactory = f;
+  File file = new File("input.txt");
+  FileInputStream fis = null;
+  try {
+    fis = new FileInputStream(file);
+  } catch (IOException e) {
+    e.printStackTrace();
+  } 
+  lexer = new Lexer(f,fis);
+:};
+scan with {: return lexer.next_token(); :};
+
+/* Terminals (tokens returned by the scanner). */
+terminal    SEMI,LPAREN, RPAREN,COMMA,SEQUENTIELLE,LSEYN,RSEYN;
+terminal CHOICE,LBRACKET,RBRACKET,PARARELLEP,PARALLELE,ASSIGN,DELTA,AROBASE,INTERUPT,IN,STOP,EXIT,HIDE,EMISSION,RECEPTION,LCROSS,RCROSS;
+terminal String ATOME; // our scanner provides atomes as String
+terminal Integer TIME;
+
+//terminal Integer    NUMBER;        // our scanner provides numbers as integers CHOICE
+
+/* Non terminals */
+non terminal            expr_list,formula,synchro,interuption,exprcomma,exprsemi,exphide,expaction;
+non terminal AST    expr,paral,choices,sequence;      // used to store evaluated subexpressions
+
+/* Precedences */
+precedence left SEMI,LPAREN, RPAREN,COMMA,SEQUENTIELLE,LSEYN,RSEYN,LBRACKET,RBRACKET,PARARELLEP,PARALLELE,ASSIGN,
+INTERUPT,IN,STOP,EXIT,HIDE ;
+
+
+/* The grammar rules */
+formula ::= ATOME:a ASSIGN expr:l1        {: RESULT=new TFormula(l1) ;:} ; 
+            
+
+exprcomma ::= expaction: ea           {: /*RESULT = ea; */:}
+            ;
+expaction  ::= ATOME:a COMMA expaction:epa           {: /*RESULT = a+","+epa; */:}
+            | ATOME:a                   {: /*RESULT =a;*/ :}
+            ;          
+exprsemi ::= ATOME:a1 SEMI          {: /*RESULT = a1+";";*/ :}
+            | ATOME:a1                   {: /*RESULT =a1;*/ :}
+            ;                                    
+synchro ::= expr:e1 LSEYN exprcomma:ec  RSEYN  expr:e2  {: /*RESULT =e1+"|["+ec+"]|"+  e2;*/ :}
+            ;
+sequence ::= LPAREN expr:e1 RPAREN SEQUENTIELLE  LPAREN expr:e2 RPAREN {: RESULT =new TSequencielle(e1,e2); :}
+            ;
+paral ::= LPAREN expr:e1 RPAREN PARARELLEP LPAREN expr:e2 RPAREN  {: RESULT = TParallele.TParallele(e1,e2); :}
+			//|   expr:e1 PARALLELE  expr:e2  {: RESULT = TParallele.TParallele(e1,e2); :}
+            ;
+choices ::= LPAREN expr:e1 CHOICE  expr:e2 RPAREN {: RESULT =new TChoices(e1,e2); :}
+            ;
+interuption ::= expr:e1 INTERUPT  expr:e2  {: /*RESULT =e1+"[>"+  e2;*/ :}
+            ;            
+exphide      ::= exphide HIDE expaction:ea IN expr:e1   {:/* RESULT ="HIDE "+ea +" in "+  e1;*/ :}
+            ;                                           
+expr      ::= exphide:h1         {: /*RESULT = h1*/;        :}
+             //| expr:e1 SEMI ATOME:a	                     {: RESULT = new TAtom(e1,a);           :}
+  //           | interuption: interup        {: /*RESULT = interup; */       :}
+             | choices:ch        {: RESULT = ch;        :}
+             | paral: p                 {: RESULT = p;           :}
+             | sequence: sq                 {:/* RESULT = sq;*/           :}
+        //     | synchro: sy                 {: /*RESULT = sy;   */        :}             
+             | DELTA LCROSS TIME:t RCROSS LPAREN expr:e RPAREN	         {:    e.deltat=t;   RESULT=e;    :}
+             | ATOME:a1 LBRACKET TIME:min COMMA TIME:max RBRACKET SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,min,max)	;  :}
+             | ATOME:a1  LPAREN ATOME:localite RPAREN LBRACKET TIME:min COMMA TIME:max RBRACKET SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,min,max,TYPE.move,localite)	;  :}
+             | ATOME:a1 RECEPTION LPAREN ATOME:localite RPAREN SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,TYPE.reception,localite)	;  :}
+             | ATOME:a1 EMISSION LPAREN ATOME:localite RPAREN SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,TYPE.emission,localite)	;  :}
+             | ATOME:a1 LPAREN ATOME:localite RPAREN LCROSS TIME:t RCROSS SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,t,TYPE.move,localite)	;  :}  
+             | ATOME:a1 LCROSS TIME:t RCROSS SEMI expr:e2			 {: RESULT=AST.ELEMENTS.get(a1+";"+e2)!=null?AST.ELEMENTS.get(a1+";"+e2):new TExpression(a1,e2,t)	;  :}
+//             | expr:e1 SEMI expr:e2			 {: RESULT=new TExpression(e1,e2)	;  :}
+             | STOP	                     {: RESULT = AST.ELEMENTS.get("STOP")!=null?AST.ELEMENTS.get("STOP"): new TAtom("STOP",TYPE.stop);           :}
+             | EXIT LCROSS TIME:t RCROSS                    {: RESULT =AST.ELEMENTS.get("EXIT")!=null?AST.ELEMENTS.get("EXIT"): new TAtom("EXIT",t,TYPE.exit);          :}
+//			 | ATOME:a	SEMI expr:e2                     {: RESULT = new TAtom(a);           :}
+             ;
+       
