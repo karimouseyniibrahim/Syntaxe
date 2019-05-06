@@ -87,14 +87,13 @@ public class  AST   {
 		T = t;
 	}
 
-	public AST(TYPE node, String iD, AST parent, TreeMap labe,String labelEdge,String nodeReaplace) {//for children paralism
+	public AST(TYPE node, String iD, AST parent, TreeMap<String,String> labe,String labelEdge,String nodeReaplace) {//for children paralism
 		ID =iD;
 		T = node;
 		AST elem= ELEMENTS.remove(nodeReaplace);
 		 removeNode(nodeReaplace);
-		//parent.labels.putAll(ID,labe.);
-
-		this.label.putAll(labe);
+		parent.labels.put(ID,labe);
+		this.label=labe;
 		this.labeledge=labelEdge;
 
 		parent.children.add(this);
@@ -131,7 +130,7 @@ public class  AST   {
 
 	public AST( String iD,AST right, TYPE t,int min,int max) {
 		super();
-		ID =iD+";"+right.formula;
+		ID =iD+";"+right.ID;
 		label.put("none","none");
 		ELEMENTS.put(ID, this);
 		graph.addNode(ID).setAttribute("ui.label",label.values() );
@@ -141,12 +140,12 @@ public class  AST   {
 		formattime="("+timemin+","+timemax+")";
 		graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",iD+formattime );
 		children.add(right);
-		//labels.put(right.ID,label);
+		labels.put(right.ID,label);
 		labelsEdgets.put(right.ID,iD+formattime);
 	}
 	public AST( String iD,AST right, TYPE t,int tim) {
 		super();
-		ID =iD+";"+right.formula;
+		ID =iD+";"+right.ID;
 		label.put("none","none");
 		ELEMENTS.put(ID, this);
 		graph.addNode(ID).setAttribute("ui.label",label.values());
@@ -161,7 +160,7 @@ public class  AST   {
 	}
 	public AST( String iD,AST right, TYPE t,int min,int max,String localite) {
 		super();
-		ID =iD+";"+right.formula;
+		ID =iD+";"+right.ID+localite;
 		label.put("none","none");
 		labeledge=iD;
 		ELEMENTS.put(ID, this);
@@ -173,32 +172,37 @@ public class  AST   {
 		this.timemin=min;
 		this.timemax=max;
 		formattime="("+timemin+","+timemax+")";
-		right.setLocaliteNode(localite);
-		graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",labeledge+formattime );
+		right.setLocaliteNode(localite,this);
+		//graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",labeledge+formattime );
+
 		children.add(right);
 		TreeMap<String,String> tr=new TreeMap();
 		tr.put(localite,localite);
+
 		labels.put(right.ID,tr);
 		labelsEdgets.put(right.ID,labeledge+formattime);
 	}
 
 	public AST( String iD,AST right, TYPE t,String localite) {
 		super();
-		ID =iD+";"+right.formula;
+		ID =iD+";"+right.ID+localite;
 		label.put("none","none");
 		ELEMENTS.put(ID, this);
 		graph.addNode(ID).setAttribute("ui.label",localite );
 		T = t;
-		graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",label );
-		children.add(right);
+		graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",iD );
 		TreeMap<String,String> tr=new TreeMap();
 		tr.put(localite,localite);
+
+		right.setLocaliteNode(localite,this);
+
+		children.add(right);
 		labels.put(right.ID,tr);
-		labelsEdgets.put(right.ID,label+formattime);
+		labelsEdgets.put(right.ID,iD+formattime);
 	}
 	public AST( String iD,AST right, TYPE t,int tim,String localite) {
 		super();
-		ID =iD+";"+right.formula;
+		ID =iD+";"+right.ID+localite;
 		label.put("none","none");
 		labeledge=iD;
 		ELEMENTS.put(ID, this);
@@ -209,11 +213,11 @@ public class  AST   {
 		T = t;
 		this.time=tim;
 		formattime="("+tim+")";
-		right.setLocaliteNode(localite);
-		graph.addEdge(ID+right.ID, ID, right.ID, true).setAttribute("ui.label",labeledge+formattime );
+		right.setLocaliteNode(localite,this);
 		children.add(right);
 		TreeMap<String,String> tr=new TreeMap();
 		tr.put(localite,localite);
+
 		labels.put(right.ID,tr);
 		labelsEdgets.put(right.ID,labeledge+formattime);
 	}
@@ -224,23 +228,37 @@ public class  AST   {
 		return graph;
 	}
 
-	public void setLocaliteNode(String localite){
+	public void setLocaliteNode(String localite,AST parent){
 		label.remove("none");
+
 		if(T!=TYPE.stop) {
 			label.put(localite,localite);
-			graph.getNode(ID).setAttribute("ui.label",label.values() );
+			ELEMENTS.remove(ID);
+			ELEMENTS.put(this.toString(),this);
+			graph.removeNode(ID);
+
+			ID=ID+localite;
+			graph.addNode(ID).setAttribute("ui.label",label.values());
 		}
+		graph.addEdge(parent.ID+ID, parent.ID, ID, true).setAttribute("ui.label",parent.labelsEdgets.get(ID) );
 
 		if(T!= TYPE.move){
 		for (AST c:children){
 			if(c.T!=TYPE.stop) {
 				TreeMap<String,String> tr=new TreeMap();
 				tr.put(localite,localite);
-				labels.put(c.ID, tr);
-
-				c.setLocaliteNode(localite);
+				labels.remove(c.ID);
+				labels.put(c.ID+localite, tr);
+				//labels.put(c.ID+localite,labels.remove(c.ID));
+				labelsEdgets.put(c.ID+localite,labelsEdgets.remove(c.ID));
 			}
+			c.setLocaliteNode(localite,this);
 		}
+		}else{
+			for (AST c:children){
+				graph.addEdge(ID+c.ID, ID, c.ID, true).setAttribute("ui.label",labelsEdgets.get(c.ID) );
+			}
+
 		}
 
 	}
@@ -285,7 +303,7 @@ public class  AST   {
 		for (AST ast : children) {
 			str+=";"+ast;
 		}
-		return formula+label ;
+		return ID+label ;
 	}
 	
 	
